@@ -66,6 +66,7 @@
   <script src="config.js"></script>
   <script src="utils/random.js"></script>
   <script src="generators/island.js"></script>
+  <script src="generators/voronoi.js"></script>
   <script src="renderers/canvas.js"></script>
   <script src="main.js"></script>
 
@@ -79,7 +80,13 @@
       const renderer = new CanvasRenderer(document.getElementById('mapCanvas'), CONFIG);
 
       const island = islandGen.generate();
-      renderer.renderIsland(island);
+
+      // Generate Voronoi regions too
+      const voronoiGen = new VoronoiGenerator(CONFIG, random, island);
+      const voronoi = voronoiGen.generate();
+
+      // Render with Voronoi
+      renderer.renderVoronoi(island, voronoi);
     }
 
     function regenerateWithNewSeed() {

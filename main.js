@@ -22,9 +22,14 @@ function initializeIslandGenerator() {
     elongation: island.effectiveElongation.toFixed(2)
   });
 
-  renderer.renderIsland(island);
+  // Generate Voronoi regions
+  const voronoiGen = new VoronoiGenerator(CONFIG, random, island);
+  const voronoi = voronoiGen.generate();
 
-  return { island, generator: islandGen, renderer };
+  // Render with Voronoi regions
+  renderer.renderVoronoi(island, voronoi);
+
+  return { island, voronoi, islandGen, voronoiGen, renderer };
 }
 
 // Auto-run if DOM is loaded
