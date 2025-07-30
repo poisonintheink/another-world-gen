@@ -41,7 +41,7 @@ class CanvasRenderer {
     }
   }
 
-  renderVoronoi(island, voronoi) {
+  renderVoronoi(island, voronoi, showTownCenters = false) {
     // Create image data
     const imageData = this.ctx.createImageData(this.size, this.size);
     const data = imageData.data;
@@ -81,9 +81,14 @@ class CanvasRenderer {
       this.drawRegionBorders(voronoi);
     }
 
-    // Draw seed points if enabled
-    if (this.config.SHOW_SEED_POINTS) {
+    // Draw seed points if enabled and not showing town centers
+    if (this.config.SHOW_SEED_POINTS && !showTownCenters) {
       this.drawSeedPoints(voronoi);
+    }
+
+    // Draw town centers if available and requested
+    if (showTownCenters && voronoi.regions[0] && voronoi.regions[0].county) {
+      this.drawTownCenters(voronoi);
     }
 
     // Draw metrics
@@ -154,11 +159,56 @@ class CanvasRenderer {
     }
   }
 
+  drawTownCenters(voronoi) {
+    for (const region of voronoi.regions) {
+      if (!region.county || !region.county.townCenter) continue;
+
+      const town = region.county.townCenter;
+
+      // Draw town center as a house icon
+      this.ctx.fillStyle = '#8B4513';  // Saddle brown
+      this.ctx.strokeStyle = '#000';
+      this.ctx.lineWidth = 1;
+
+      // House base
+      const size = 8;
+      this.ctx.fillRect(town.x - size / 2, town.y - size / 4, size, size / 2);
+      this.ctx.strokeRect(town.x - size / 2, town.y - size / 4, size, size / 2);
+
+      // Roof
+      this.ctx.fillStyle = '#A52A2A';  // Red brown
+      this.ctx.beginPath();
+      this.ctx.moveTo(town.x - size / 2 - 2, town.y - size / 4);
+      this.ctx.lineTo(town.x, town.y - size);
+      this.ctx.lineTo(town.x + size / 2 + 2, town.y - size / 4);
+      this.ctx.closePath();
+      this.ctx.fill();
+      this.ctx.stroke();
+
+      // Door
+      this.ctx.fillStyle = '#654321';
+      this.ctx.fillRect(town.x - 2, town.y - 2, 4, 6);
+
+      // Label with better positioning
+      this.ctx.fillStyle = 'white';
+      this.ctx.strokeStyle = 'black';
+      this.ctx.font = 'bold 11px Arial';
+      this.ctx.lineWidth = 3;
+      this.ctx.textAlign = 'center';
+      this.ctx.strokeText(region.county.name, town.x, town.y + 15);
+      this.ctx.fillText(region.county.name, town.x, town.y + 15);
+    }
+
+    // Reset text align
+    this.ctx.textAlign = 'left';
+  }
+
   drawVoronoiMetrics(island, voronoi) {
     this.ctx.fillStyle = 'white';
     this.ctx.strokeStyle = 'black';
     this.ctx.font = '14px monospace';
     this.ctx.lineWidth = 3;
+    this.ctx.textAlign = 'left';  // Ensure left alignment
 
     const metrics = [
       `Land Coverage: ${(island.coverage * 100).toFixed(1)}%`,
@@ -166,6 +216,11 @@ class CanvasRenderer {
       `Avg Region Size: ${Math.round(island.landPixels / voronoi.regions.length).toLocaleString()} pixels`,
       `Elongation: ${island.effectiveElongation.toFixed(2)}`
     ];
+
+    // Add counties info if available
+    if (voronoi.regions[0] && voronoi.regions[0].county) {
+      metrics.push(`Counties: ${voronoi.regions.filter(r => r.county).length}`);
+    }
 
     metrics.forEach((text, i) => {
       const y = 20 + i * 20;
