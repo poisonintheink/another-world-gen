@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Procedural Map Generator - Island Generation</title>
+  <title>Procedural Map Generator - Stage 2: Region Refinement</title>
   <style>
     body {
       margin: 0;
@@ -34,6 +34,11 @@
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
 
+    .controls h3 {
+      margin-top: 0;
+      color: #333;
+    }
+
     button {
       padding: 10px 20px;
       font-size: 16px;
@@ -42,21 +47,86 @@
       border: none;
       border-radius: 4px;
       cursor: pointer;
+      margin-right: 10px;
+      margin-bottom: 10px;
     }
 
-    button:hover {
+    button:hover:not(:disabled) {
       background-color: #45a049;
+    }
+
+    button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+
+    button.secondary {
+      background-color: #2196F3;
+    }
+
+    button.secondary:hover:not(:disabled) {
+      background-color: #0b7dda;
+    }
+
+    .stage-info {
+      background: #e8f4f8;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      border-left: 4px solid #2196F3;
+    }
+
+    .stage-info h2 {
+      margin-top: 0;
+      color: #1976d2;
+    }
+
+    .progress-list {
+      list-style: none;
+      padding: 0;
+    }
+
+    .progress-list li {
+      padding: 5px 0;
+      padding-left: 25px;
+      position: relative;
+    }
+
+    .progress-list li:before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      color: #4CAF50;
+      font-weight: bold;
+    }
+
+    .progress-list li.pending:before {
+      content: "○";
+      color: #999;
     }
   </style>
 </head>
 
 <body>
   <div class="container">
-    <h1>Procedural Map Generator - Stage 1: Island Generation</h1>
+    <h1>Procedural Map Generator</h1>
+
+    <div class="stage-info">
+      <h2>Stage 2: Region Refinement & County Creation</h2>
+      <ul class="progress-list">
+        <li id="task-smooth">Smooth non-water borders</li>
+        <li id="task-centroids">Recalculate region centroids</li>
+        <li id="task-counties">Transform regions into counties</li>
+        <li id="task-towns">Place town centers in good locations</li>
+      </ul>
+    </div>
 
     <div class="controls">
+      <h3>Generation Controls</h3>
       <button onclick="regenerateIsland()">Generate New Island</button>
       <button onclick="regenerateWithNewSeed()">New Random Seed</button>
+      <button id="refineBtn" onclick="refineRegions()" class="secondary">Refine Regions</button>
+      <button id="toggleBtn" onclick="toggleView()" class="secondary" style="display: none;">Show Town Centers</button>
     </div>
 
     <canvas id="mapCanvas"></canvas>
@@ -67,14 +137,15 @@
   <script src="utils/random.js"></script>
   <script src="generators/island.js"></script>
   <script src="generators/voronoi.js"></script>
+  <script src="generators/refiner.js"></script>
   <script src="renderers/canvas.js"></script>
   <script src="main.js"></script>
 
   <script>
     let currentSeed = 'test123';
-    let components = null;
 
     function regenerateIsland() {
+      currentSeed = currentSeed; // Keep same seed
       const random = new Random(currentSeed);
       const islandGen = new IslandGenerator(CONFIG, random);
       const renderer = new CanvasRenderer(document.getElementById('mapCanvas'), CONFIG);
@@ -85,14 +156,33 @@
       const voronoiGen = new VoronoiGenerator(CONFIG, random, island);
       const voronoi = voronoiGen.generate();
 
+      // Store globally
+      currentComponents = { island, voronoi, islandGen, voronoiGen, renderer };
+      isRefined = false;
+
       // Render with Voronoi
       renderer.renderVoronoi(island, voronoi);
+
+      // Reset progress indicators
+      document.querySelectorAll('.progress-list li').forEach(li => li.classList.add('pending'));
+
+      // Update button states
+      updateButtonStates();
     }
 
     function regenerateWithNewSeed() {
       currentSeed = 'seed_' + Date.now();
       regenerateIsland();
     }
+
+    // Override refineRegions to update progress
+    const originalRefineRegions = refineRegions;
+    refineRegions = function () {
+      originalRefineRegions();
+
+      // Update progress indicators
+      document.querySelectorAll('.progress-list li').forEach(li => li.classList.remove('pending'));
+    };
   </script>
 </body>
 

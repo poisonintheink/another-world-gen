@@ -1,4 +1,7 @@
 // Main entry point for testing island generation
+let currentComponents = null;
+let isRefined = false;
+
 function initializeIslandGenerator() {
   // Get or create canvas
   const canvas = document.getElementById('mapCanvas');
@@ -26,10 +29,78 @@ function initializeIslandGenerator() {
   const voronoiGen = new VoronoiGenerator(CONFIG, random, island);
   const voronoi = voronoiGen.generate();
 
-  // Render with Voronoi regions
-  renderer.renderVoronoi(island, voronoi);
+  // Store components globally for refinement
+  currentComponents = { island, voronoi, islandGen, voronoiGen, renderer };
+  isRefined = false;
 
-  return { island, voronoi, islandGen, voronoiGen, renderer };
+  // Render with Voronoi regions
+  renderer.renderVoronoi(island, voronoi, false);
+
+  // Update button states
+  updateButtonStates();
+
+  return currentComponents;
+}
+
+function refineRegions() {
+  if (!currentComponents) {
+    console.error('No island generated yet');
+    return;
+  }
+
+  const { island, voronoi, renderer } = currentComponents;
+
+  // Create region refiner
+  const refiner = new RegionRefiner(CONFIG, island, voronoi);
+
+  // Refine regions
+  console.log('Refining regions...');
+  refiner.refine();
+
+  // Store refiner
+  currentComponents.refiner = refiner;
+  isRefined = true;
+
+  // Re-render with refined regions and town centers
+  renderer.renderVoronoi(island, voronoi, true);
+
+  // Update button states
+  updateButtonStates();
+
+  console.log('Refinement complete:', {
+    smoothedBorders: true,
+    townCenters: voronoi.regions.filter(r => r.county && r.county.townCenter).length
+  });
+}
+
+function toggleView() {
+  if (!currentComponents || !isRefined) return;
+
+  const { island, voronoi, renderer } = currentComponents;
+
+  // Toggle between showing seed points and town centers
+  const showTowns = !document.getElementById('toggleBtn').dataset.showingTowns;
+  document.getElementById('toggleBtn').dataset.showingTowns = showTowns;
+
+  renderer.renderVoronoi(island, voronoi, showTowns);
+
+  // Update button text
+  document.getElementById('toggleBtn').textContent = showTowns ? 'Show Seed Points' : 'Show Town Centers';
+}
+
+function updateButtonStates() {
+  const refineBtn = document.getElementById('refineBtn');
+  const toggleBtn = document.getElementById('toggleBtn');
+
+  if (refineBtn) {
+    refineBtn.disabled = !currentComponents || isRefined;
+    refineBtn.textContent = isRefined ? 'Regions Refined' : 'Refine Regions';
+  }
+
+  if (toggleBtn) {
+    toggleBtn.disabled = !isRefined;
+    toggleBtn.style.display = isRefined ? 'inline-block' : 'none';
+  }
 }
 
 // Auto-run if DOM is loaded
